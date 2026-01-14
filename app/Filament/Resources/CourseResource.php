@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class CourseResource extends Resource
 {
@@ -19,6 +20,40 @@ class CourseResource extends Resource
     protected static ?string $modelLabel = 'Corso';
     protected static ?string $pluralLabel = 'Corsi';
 
+    protected static ?string $navigationGroup = 'Didattica';
+    protected static ?int $navigationSort = 1;
+
+    public static function canViewAny(): bool
+    {
+        $u = auth()->user();
+        if (! $u) {
+            return false;
+        }
+
+        // Visibile allo staff
+        return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('courses.manage') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('courses.manage') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->can('courses.manage') ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->can('courses.manage') ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -28,6 +63,14 @@ class CourseResource extends Resource
                         ->label('Nome corso')
                         ->required()
                         ->maxLength(255),
+
+                    Forms\Components\Select::make('subject_id')
+                        ->label('Lingua')
+                        ->relationship('subject', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->helperText('Lingua del corso (coerente con le lingue docenti).'),
 
                     Forms\Components\Textarea::make('description')
                         ->label('Descrizione')
@@ -57,7 +100,6 @@ class CourseResource extends Resource
                         ->default(0)
                         ->required(),
 
-                    // Campo "price" presente in tabella: lo mostro disabilitato per non creare confusione
                     Forms\Components\TextInput::make('price')
                         ->label('price (campo legacy)')
                         ->disabled()
@@ -77,6 +119,11 @@ class CourseResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('subject.name')
+                    ->label('Lingua')
+                    ->sortable()
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('lessons_count')
                     ->label('Lezioni')
                     ->sortable(),
@@ -95,19 +142,21 @@ class CourseResource extends Resource
                     ->sortable(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => static::canCreate()),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make()
+                    ->visible(fn () => static::canDeleteAny()),
             ]);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCourses::route('/'),
+            'index'  => Pages\ListCourses::route('/'),
             'create' => Pages\CreateCourse::route('/create'),
-            'edit' => Pages\EditCourse::route('/{record}/edit'),
+            'edit'   => Pages\EditCourse::route('/{record}/edit'),
         ];
     }
 }

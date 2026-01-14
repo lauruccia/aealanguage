@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -45,4 +46,24 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function isSuperAdmin(): bool
+{
+    return $this->hasRole('superadmin');
+}
+
+public function isStaff(): bool
+{
+    return $this->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+}
+    public function student()
+{
+    return $this->hasOne(\App\Models\Student::class);
+}
+
+    public function teacher()
+{
+    return $this->hasOne(\App\Models\Teacher::class);
+}
+
 }

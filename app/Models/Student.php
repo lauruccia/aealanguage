@@ -25,6 +25,11 @@ final class Student extends Model
     return $this->hasMany(Enrollment::class);
 }
 
+public function user()
+{
+    return $this->belongsTo(\App\Models\User::class);
+}
+
 public function installments()
 {
     return $this->hasManyThrough(
@@ -35,6 +40,12 @@ public function installments()
         'id',
         'id'
     );
+}
+
+
+public function lessons(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(\App\Models\Lesson::class);
 }
 
 

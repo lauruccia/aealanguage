@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Actions\Action;
 
 class EnrollmentsRelationManager extends RelationManager
 {
@@ -25,13 +26,23 @@ class EnrollmentsRelationManager extends RelationManager
                 ->reactive()
                 ->options(fn () => Course::query()->orderBy('name')->pluck('name', 'id'))
                 ->afterStateUpdated(function ($state, callable $set) {
-                    if (!$state) return;
-                    $course = Course::find($state);
-                    if (!$course) return;
+                    if (! $state) {
+                        $set('course_subject_label', null);
+                        return;
+                    }
+
+                    $course = Course::with('subject')->find($state);
+                    if (! $course) return;
 
                     $set('course_price_eur', $course->prezzo);
                     $set('registration_fee_eur', $course->tassa_iscrizione);
+                    $set('course_subject_label', $course->subject?->name);
                 }),
+
+            Forms\Components\Placeholder::make('course_subject_label')
+                ->label('Lingua')
+                ->content(fn (Forms\Get $get) => $get('course_subject_label') ?: '—')
+                ->dehydrated(false),
 
             Forms\Components\TextInput::make('course_price_eur')
                 ->label('Prezzo corso (€)')
@@ -75,10 +86,10 @@ class EnrollmentsRelationManager extends RelationManager
                 ->required()
                 ->default('attiva')
                 ->options([
-                    'attiva' => 'Attiva',
-                    'conclusa' => 'Conclusa',
-                    'annullata' => 'Annullata',
-                    'sospesa' => 'Sospesa',
+                    'attiva' => 'Attivo',
+                    'conclusa' => 'Concluso',
+                    'annullata' => 'Annullato',
+                    'sospesa' => 'Sospeso',
                 ]),
 
             Forms\Components\DatePicker::make('enrolled_at')
@@ -100,6 +111,11 @@ class EnrollmentsRelationManager extends RelationManager
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('course.subject.name')
+                    ->label('Lingua')
+                    ->sortable()
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('course.name')
                     ->label('Corso')
                     ->searchable()
@@ -107,7 +123,7 @@ class EnrollmentsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('payment_plan')
                     ->label('Pagamento')
-                    ->formatStateUsing(fn ($s) => $s === 'single' ? 'Unico' : 'Rate')
+                    ->formatStateUsing(fn ($state) => $state === 'single' ? 'Unico' : 'Rate')
                     ->badge(),
 
                 Tables\Columns\TextColumn::make('installments_count')
@@ -119,7 +135,7 @@ class EnrollmentsRelationManager extends RelationManager
                     ->badge(),
 
                 Tables\Columns\TextColumn::make('enrolled_at')
-                    ->label('Ammissione')
+                    ->label('Iscritto il')
                     ->date('d/m/Y')
                     ->sortable(),
             ])
@@ -130,7 +146,14 @@ class EnrollmentsRelationManager extends RelationManager
                     }),
             ])
             ->actions([
+                Action::make('printContract')
+                    ->label('Stampa contratto')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn ($record) => route('enrollments.contract.print', $record))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\EditAction::make()
+                    ->label('Modifica')
                     ->after(function ($record) {
                         app(InstallmentGenerator::class)->generateForEnrollment($record);
                     }),

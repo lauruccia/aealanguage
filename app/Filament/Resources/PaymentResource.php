@@ -3,47 +3,83 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PaymentResource\Pages;
-use App\Filament\Resources\PaymentResource\RelationManagers;
 use App\Models\Payment;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\Eloquent\Model;
 
 class PaymentResource extends Resource
 {
+    // Non mostrare nel menu: lo gestiamo indirettamente (rate/pagamenti)
+    protected static bool $shouldRegisterNavigation = false;
 
-protected static bool $shouldRegisterNavigation = false;
     protected static ?string $model = Payment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    public static function canViewAny(): bool
+    {
+        $u = auth()->user();
+        if (! $u) {
+            return false;
+        }
+
+        // visibile allo staff (anche se non in menu)
+        return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('enrollment_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('installment_id')
-                    ->numeric(),
-                Forms\Components\DatePicker::make('paid_at')
-                    ->required(),
-                Forms\Components\TextInput::make('amount_cents')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('kind')
-                    ->required(),
-                Forms\Components\TextInput::make('method')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('reference')
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('notes')
-                    ->columnSpanFull(),
-            ]);
+        return $form->schema([
+            Forms\Components\TextInput::make('enrollment_id')
+                ->required()
+                ->numeric(),
+
+            Forms\Components\TextInput::make('installment_id')
+                ->numeric(),
+
+            Forms\Components\DatePicker::make('paid_at')
+                ->required(),
+
+            Forms\Components\TextInput::make('amount_cents')
+                ->required()
+                ->numeric(),
+
+            Forms\Components\TextInput::make('kind')
+                ->required(),
+
+            Forms\Components\TextInput::make('method')
+                ->maxLength(255),
+
+            Forms\Components\TextInput::make('reference')
+                ->maxLength(255),
+
+            Forms\Components\Textarea::make('notes')
+                ->columnSpanFull(),
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -53,55 +89,55 @@ protected static bool $shouldRegisterNavigation = false;
                 Tables\Columns\TextColumn::make('enrollment_id')
                     ->numeric()
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('installment_id')
                     ->numeric()
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('paid_at')
                     ->date()
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('amount_cents')
                     ->numeric()
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('kind'),
+
                 Tables\Columns\TextColumn::make('method')
                     ->searchable(),
+
                 Tables\Columns\TextColumn::make('reference')
                     ->searchable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => static::canCreate()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => static::canDeleteAny()),
                 ]),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListPayments::route('/'),
+            'index'  => Pages\ListPayments::route('/'),
             'create' => Pages\CreatePayment::route('/create'),
-            'edit' => Pages\EditPayment::route('/{record}/edit'),
+            'edit'   => Pages\EditPayment::route('/{record}/edit'),
         ];
     }
 }

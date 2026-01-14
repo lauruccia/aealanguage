@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\EnrollmentResource\RelationManagers;
 
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -14,58 +13,52 @@ class InstallmentsRelationManager extends RelationManager
 
     protected static ?string $title = 'Rate';
 
-    public function form(Form $form): Form
+    // Rinfresca la tabella al dispatch('refreshInstallments')
+    protected $listeners = [
+        'refreshInstallments' => '$refresh',
+    ];
+
+    public function form(Forms\Form $form): Forms\Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Rata')
-                ->schema([
-                    Forms\Components\TextInput::make('number')
-                        ->label('Numero')
-                        ->disabled()
-                        ->dehydrated(false),
+            Forms\Components\TextInput::make('number')
+                ->label('N°')
+                ->numeric()
+                ->required(),
 
-                    Forms\Components\DatePicker::make('due_date')
-                        ->label('Scadenza')
-                        ->required(),
+            Forms\Components\DatePicker::make('due_date')
+                ->label('Scadenza')
+                ->required(),
 
-                    Forms\Components\TextInput::make('amount_cents')
-                        ->label('Importo (€)')
-                        ->numeric()
-                        ->required()
-                        ->formatStateUsing(fn ($state) => is_null($state) ? null : ((int) $state) / 100)
-                        ->dehydrateStateUsing(fn ($state) => (int) round(((float) str_replace(',', '.', (string) $state)) * 100)),
+            Forms\Components\TextInput::make('amount_cents')
+                ->label('Importo (cents)')
+                ->numeric()
+                ->required(),
 
-                    Forms\Components\TextInput::make('paid_cents')
-                        ->label('Pagato (€)')
-                        ->numeric()
-                        ->default(0)
-                        ->formatStateUsing(fn ($state) => is_null($state) ? null : ((int) $state) / 100)
-                        ->dehydrateStateUsing(fn ($state) => (int) round(((float) str_replace(',', '.', (string) $state)) * 100)),
+            Forms\Components\TextInput::make('paid_cents')
+                ->label('Pagato (cents)')
+                ->numeric()
+                ->default(0),
 
-                    Forms\Components\Select::make('status')
-                        ->label('Stato')
-                        ->required()
-                        ->options([
-                            'da_pagare' => 'Da pagare',
-                            'parziale'  => 'Parziale',
-                            'pagata'    => 'Pagata',
-                            'scaduta'   => 'Scaduta',
-                        ])
-                        ->default('da_pagare'),
-                ])
-                ->columns(3),
-        ]);
+            Forms\Components\Select::make('status')
+                ->label('Stato')
+                ->required()
+                ->options([
+                    'da_pagare' => 'Da pagare',
+                    'parziale'  => 'Parziale',
+                    'pagata'    => 'Pagata',
+                ]),
+        ])->columns(5);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->defaultSort('number', 'asc')
+            ->defaultSort('number')
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->label('N°')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => ((int) $state) === 0 ? 'TASSA' : (string) $state),
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Scadenza')
@@ -74,40 +67,36 @@ class InstallmentsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('amount_cents')
                     ->label('Importo')
-                    ->alignRight()
                     ->formatStateUsing(fn ($state) => number_format(((int) $state) / 100, 2, ',', '.') . ' €')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('paid_cents')
                     ->label('Pagato')
-                    ->alignRight()
                     ->formatStateUsing(fn ($state) => number_format(((int) $state) / 100, 2, ',', '.') . ' €')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Stato')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pagata'   => 'success',
-                        'parziale' => 'warning',
-                        'scaduta'  => 'danger',
-                        default    => 'gray',
-                    })
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'pagata'   => 'Pagata',
-                        'parziale' => 'Parziale',
-                        'scaduta'  => 'Scaduta',
-                        default    => 'Da pagare',
+                        'pagata'    => 'Pagata',
+                        'parziale'  => 'Parziale',
+                        'da_pagare' => 'Da pagare',
+                        default     => $state,
                     })
-                    ->sortable(),
+                    ->color(fn ($state) => match ($state) {
+                        'pagata'    => 'success', // verde
+                        'parziale'  => 'info',    // blu
+                        'da_pagare' => 'warning', // giallo
+                        default     => 'gray',
+                    }),
             ])
             ->headerActions([
-                // di default: niente Create, perché le rate le genera il sistema dall'iscrizione
-                // Se vuoi poter aggiungere rate manualmente, dimmelo e abilitiamo CreateAction
+                Tables\Actions\CreateAction::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([]);
+                Tables\Actions\DeleteAction::make(),
+            ]);
     }
 }

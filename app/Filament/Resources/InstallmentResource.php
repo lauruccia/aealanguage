@@ -13,15 +13,50 @@ use Filament\Tables\Actions\Action;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class InstallmentResource extends Resource
 {
     protected static ?string $model = Installment::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
-    protected static ?string $navigationLabel = 'Rate';
     protected static ?string $modelLabel = 'Rata';
     protected static ?string $pluralLabel = 'Rate';
+
+    protected static ?string $navigationGroup = 'Studenti';
+    protected static ?string $navigationLabel = 'Scadenze e pagamenti';
+    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+
+    public static function canViewAny(): bool
+    {
+        $u = auth()->user();
+        if (! $u) {
+            return false;
+        }
+
+        // visibile allo staff
+        return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->can('payments.manage') ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -163,13 +198,14 @@ class InstallmentResource extends Resource
                     ->query(fn (Builder $query) => $query->whereIn('status', ['da_pagare', 'parziale', 'scaduta'])),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => static::canCreate()),
 
                 Action::make('markPaid')
                     ->label('Segna pagata')
                     ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
-                    ->visible(fn ($record) => $record->status !== 'pagata')
+                    ->visible(fn ($record) => $record->status !== 'pagata' && (auth()->user()?->can('payments.manage') ?? false))
                     ->action(function ($record) {
                         $record->paid_cents = (int) $record->amount_cents;
                         $record->status = 'pagata';
@@ -182,9 +218,9 @@ class InstallmentResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListInstallments::route('/'),
+            'index'  => Pages\ListInstallments::route('/'),
             'create' => Pages\CreateInstallment::route('/create'),
-            'edit' => Pages\EditInstallment::route('/{record}/edit'),
+            'edit'   => Pages\EditInstallment::route('/{record}/edit'),
         ];
     }
 }
