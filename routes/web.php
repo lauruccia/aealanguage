@@ -15,3 +15,6 @@ Route::middleware(['web', 'auth'])
 Route::middleware(['web', 'auth'])
     ->get('/enrollments/{enrollment}/contract/print', [EnrollmentContractController::class, 'print'])
     ->name('enrollments.contract.print');
+
+
+

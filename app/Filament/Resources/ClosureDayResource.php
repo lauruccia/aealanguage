@@ -20,7 +20,10 @@ class ClosureDayResource extends Resource
     protected static ?string $navigationGroup = 'Didattica';
     protected static ?int $navigationSort = 4;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
@@ -30,25 +33,29 @@ class ClosureDayResource extends Resource
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
+    }
+
     public static function canCreate(): bool
     {
-        // superadmin passa comunque se hai Gate::before
-        return auth()->user()?->can('closure_days.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('closure_days.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('closure_days.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('closure_days.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -63,6 +70,7 @@ class ClosureDayResource extends Resource
                 Forms\Components\TextInput::make('reason')
                     ->label('Motivo')
                     ->maxLength(255)
+                    ->nullable()
                     ->columnSpanFull(),
             ])
             ->columns(2);
@@ -83,8 +91,11 @@ class ClosureDayResource extends Resource
                     ->wrap(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()->visible(fn () => static::canCreate()),
-                Tables\Actions\DeleteAction::make()->visible(fn () => static::canDeleteAny()),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Model $record) => static::canEdit($record)),
+
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn (Model $record) => static::canDelete($record)),
             ]);
     }
 

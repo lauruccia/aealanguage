@@ -14,7 +14,7 @@ class AdminDashboard extends BaseDashboard
     $u = auth()->user();
     if (! $u) return false;
 
-    return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria', 'docente', 'studente']);
 }
 
 

@@ -23,35 +23,42 @@ class CourseResource extends Resource
     protected static ?string $navigationGroup = 'Didattica';
     protected static ?int $navigationSort = 1;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
             return false;
         }
 
-        // Visibile allo staff
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('courses.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('courses.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('courses.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('courses.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -66,24 +73,29 @@ class CourseResource extends Resource
 
                     Forms\Components\Select::make('subject_id')
                         ->label('Lingua')
-                        ->relationship('subject', 'name')
+                        ->relationship(
+                            name: 'subject',
+                            titleAttribute: 'name',
+                            modifyQueryUsing: fn ($query) => $query->orderBy('name')
+                        )
                         ->searchable()
                         ->preload()
                         ->required()
                         ->helperText('Lingua del corso (coerente con le lingue docenti).'),
-
-                    Forms\Components\Textarea::make('description')
-                        ->label('Descrizione')
-                        ->rows(4)
-                        ->columnSpanFull(),
 
                     Forms\Components\TextInput::make('lessons_count')
                         ->label('Numero lezioni')
                         ->numeric()
                         ->minValue(0)
                         ->required(),
+
+                    Forms\Components\Textarea::make('description')
+                        ->label('Descrizione')
+                        ->rows(4)
+                        ->columnSpanFull()
+                        ->nullable(),
                 ])
-                ->columns(2),
+                ->columns(3),
 
             Forms\Components\Section::make('Prezzi')
                 ->schema([
@@ -99,14 +111,8 @@ class CourseResource extends Resource
                         ->minValue(0)
                         ->default(0)
                         ->required(),
-
-                    Forms\Components\TextInput::make('price')
-                        ->label('price (campo legacy)')
-                        ->disabled()
-                        ->dehydrated(false)
-                        ->helperText('Campo presente nel DB, ma non usato. Valuteremo se rimuoverlo.'),
                 ])
-                ->columns(3),
+                ->columns(2),
         ]);
     }
 
@@ -121,8 +127,7 @@ class CourseResource extends Resource
 
                 Tables\Columns\TextColumn::make('subject.name')
                     ->label('Lingua')
-                    ->sortable()
-                    ->toggleable(),
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('lessons_count')
                     ->label('Lezioni')
@@ -143,7 +148,7 @@ class CourseResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()

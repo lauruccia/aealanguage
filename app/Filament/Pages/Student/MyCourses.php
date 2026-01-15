@@ -18,10 +18,11 @@ class MyCourses extends Page implements HasTable
     protected static ?string $navigationLabel = 'I miei corsi';
     protected static ?string $navigationGroup = 'Studente';
     protected static string $view = 'filament.pages.student.my-courses';
+    protected static ?string $slug = 'student/my-courses';
 
-    public static function canAccess(): bool
+      public static function canAccess(): bool
     {
-        return auth()->user()?->can('student.courses.view_own') ?? false;
+        return auth()->user()?->hasRole('studente') ?? false;
     }
 
     protected function baseQuery(): Builder

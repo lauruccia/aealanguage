@@ -25,35 +25,42 @@ class EnrollmentResource extends Resource
     protected static ?string $navigationGroup = 'Studenti';
     protected static ?int $navigationSort = 2;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
             return false;
         }
 
-        // visibile allo staff
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('enrollments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('enrollments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('enrollments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('enrollments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -299,10 +306,16 @@ class EnrollmentResource extends Resource
                     ->label('Stampa contratto')
                     ->icon('heroicon-o-printer')
                     ->url(fn ($record) => route('enrollments.contract.print', $record))
-                    ->openUrlInNewTab(),
+                    ->openUrlInNewTab()
+                    ->visible(fn () => static::canViewAny()),
 
-                Tables\Actions\ViewAction::make()->label('Vedi'),
-                Tables\Actions\EditAction::make()->label('Modifica'),
+                Tables\Actions\ViewAction::make()
+                    ->label('Vedi')
+                    ->visible(fn () => static::canViewAny()),
+
+                Tables\Actions\EditAction::make()
+                    ->label('Modifica')
+                    ->visible(fn (Model $record) => static::canEdit($record)),
             ]);
     }
 

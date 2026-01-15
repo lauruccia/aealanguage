@@ -19,9 +19,11 @@ class MyLessons extends Page implements HasTable
     protected static ?string $navigationGroup = 'Studente';
     protected static string $view = 'filament.pages.student.my-lessons';
 
+    protected static ?string $slug = 'student/my-lessons';
+
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('student.lessons.view_own') ?? false;
+        return auth()->user()?->hasRole('studente') ?? false;
     }
 
     protected function baseQuery(): Builder

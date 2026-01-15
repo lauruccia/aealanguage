@@ -5,9 +5,9 @@ namespace App\Filament\Pages\Student;
 use App\Models\Enrollment;
 use Filament\Pages\Page;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -20,9 +20,16 @@ class MyContracts extends Page implements HasTable
     protected static ?string $navigationGroup = 'Studente';
     protected static string $view = 'filament.pages.student.my-contracts';
 
+    // ✅ Solo gli utenti col ruolo "studente" vedono/possono accedere
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('student.contracts.view_own') ?? false;
+        return auth()->user()?->hasRole('studente') ?? false;
+    }
+
+    // ✅ (opzionale ma consigliato) la voce di menu viene registrata solo per studenti
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('studente') ?? false;
     }
 
     protected function baseQuery(): Builder

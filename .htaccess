@@ -1,0 +1,25 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Non fare rewrite su file/cartelle reali
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Evita loop
+RewriteRule ^public/ - [L]
+
+# Tutto dentro /public
+RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# SP BEGIN php handler
+<IfModule mod_fcgid.c>
+          AddHandler fcgid-script .php .php5 .php7 .phtml
+          FcgidWrapper    /usr/local/cpanel/cgi-sys/sp-ea-php84 .php
+          FcgidWrapper    /usr/local/cpanel/cgi-sys/sp-ea-php84 .php5
+          FcgidWrapper    /usr/local/cpanel/cgi-sys/sp-ea-php84 .php7
+          FcgidWrapper    /usr/local/cpanel/cgi-sys/sp-ea-php84 .phtml
+</IfModule>
+# SP END php handler
+

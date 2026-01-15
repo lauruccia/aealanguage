@@ -27,35 +27,42 @@ class InstallmentResource extends Resource
     protected static ?int $navigationSort = 3;
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
             return false;
         }
 
-        // visibile allo staff
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -199,13 +206,13 @@ class InstallmentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
 
                 Action::make('markPaid')
                     ->label('Segna pagata')
                     ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
-                    ->visible(fn ($record) => $record->status !== 'pagata' && (auth()->user()?->can('payments.manage') ?? false))
+                    ->visible(fn ($record) => static::staffCanManage() && $record->status !== 'pagata')
                     ->action(function ($record) {
                         $record->paid_cents = (int) $record->amount_cents;
                         $record->status = 'pagata';

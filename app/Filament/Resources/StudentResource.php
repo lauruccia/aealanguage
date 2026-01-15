@@ -23,7 +23,10 @@ class StudentResource extends Resource
     protected static ?string $navigationGroup = 'Studenti';
     protected static ?int $navigationSort = 1;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
@@ -33,24 +36,29 @@ class StudentResource extends Resource
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
+    }
+
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('students.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('students.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('students.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('students.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -99,8 +107,9 @@ class StudentResource extends Resource
                                         ->content(function (?Student $record) {
                                             if (! $record?->id) return '—';
 
+                                            // FIX: status coerente con EnrollmentResource (attivo)
                                             $names = $record->enrollments()
-                                                ->where('status', 'attiva')
+                                                ->whereIn('status', ['attivo', 'sospeso'])
                                                 ->with('course.subject')
                                                 ->get()
                                                 ->pluck('course.subject.name')
@@ -220,7 +229,7 @@ class StudentResource extends Resource
                                         : url('/admin/enrollments/create')
                                     )
                                     ->openUrlInNewTab()
-                                    ->visible(fn (?Student $record) => filled($record?->id)),
+                                    ->visible(fn (?Student $record) => static::staffCanManage() && filled($record?->id)),
                             ])->alignEnd(),
                         ]),
 
@@ -231,6 +240,7 @@ class StudentResource extends Resource
                                 ->viewData(fn (?Student $record) => [
                                     'student' => $record,
                                 ])
+                                ->dehydrated(false)
                                 ->visible(fn (?Student $record) => filled($record?->id)),
                         ]),
                 ]),
@@ -274,11 +284,12 @@ class StudentResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Vedi')
-                    ->icon('heroicon-o-eye'),
+                    ->icon('heroicon-o-eye')
+                    ->visible(fn () => static::canViewAny()),
 
                 Tables\Actions\EditAction::make()
                     ->label('Modifica')
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
             ]);
     }
 

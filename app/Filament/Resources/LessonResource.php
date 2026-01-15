@@ -13,7 +13,6 @@ use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class LessonResource extends Resource
@@ -27,7 +26,10 @@ class LessonResource extends Resource
     protected static ?string $navigationGroup = 'Didattica';
     protected static ?int $navigationSort = 2;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
@@ -35,6 +37,31 @@ class LessonResource extends Resource
         }
 
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::staffCanManage();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::staffCanManage();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::staffCanManage();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::staffCanManage();
     }
 
     protected static function blockingStatuses(): array
@@ -90,26 +117,6 @@ class LessonResource extends Resource
                 return [$t->id => $label];
             })
             ->toArray();
-    }
-
-    public static function canCreate(): bool
-    {
-        return auth()->user()?->can('lessons.manage') ?? false;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return auth()->user()?->can('lessons.manage') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return auth()->user()?->can('lessons.manage') ?? false;
-    }
-
-    public static function canDeleteAny(): bool
-    {
-        return auth()->user()?->can('lessons.manage') ?? false;
     }
 
     public static function form(Form $form): Form
@@ -266,14 +273,14 @@ class LessonResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
 
                 Tables\Actions\Action::make('cancelLesson')
                     ->label('Annulla')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->visible(fn (Lesson $record) =>
-                        (auth()->user()?->can('lessons.cancel') ?? false)
+                        static::staffCanManage()
                         && $record->status === Lesson::STATUS_SCHEDULED
                     )
                     ->form([
@@ -310,7 +317,7 @@ class LessonResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (Lesson $record) =>
-                        (auth()->user()?->can('lessons.manage') ?? false)
+                        static::staffCanManage()
                         && $record->status === Lesson::STATUS_CANCELLED_RECOVER
                     )
                     ->form([

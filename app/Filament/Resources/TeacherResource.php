@@ -23,7 +23,10 @@ class TeacherResource extends Resource
     protected static ?string $navigationGroup = 'Risorse Umane';
     protected static ?int $navigationSort = 1;
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
@@ -33,24 +36,29 @@ class TeacherResource extends Resource
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::staffCanManage();
+    }
+
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('teachers.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('teachers.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('teachers.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('teachers.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -171,9 +179,9 @@ class TeacherResource extends Resource
                         ->label('Modalità di fatturazione')
                         ->options([
                             'WITHHOLDING_20' => "Ritenuta d'acconto del 20%",
-                            'NO_VAT' => 'Fatturazione senza IVA',
-                            'WITH_VAT' => 'Fatturazione con IVA',
-                            'NONE' => 'Nessuna dei precedenti',
+                            'NO_VAT'         => 'Fatturazione senza IVA',
+                            'WITH_VAT'       => 'Fatturazione con IVA',
+                            'NONE'           => 'Nessuna dei precedenti',
                         ])
                         ->required()
                         ->live(),
@@ -270,10 +278,10 @@ class TeacherResource extends Resource
                     ->formatStateUsing(function (?string $state): string {
                         return match ($state) {
                             'WITHHOLDING_20' => "Ritenuta 20%",
-                            'NO_VAT' => 'Senza IVA',
-                            'WITH_VAT' => 'Con IVA',
-                            'NONE' => 'Nessuna',
-                            default => $state ?? '-',
+                            'NO_VAT'         => 'Senza IVA',
+                            'WITH_VAT'       => 'Con IVA',
+                            'NONE'           => 'Nessuna',
+                            default          => $state ?? '-',
                         };
                     })
                     ->sortable()
@@ -330,9 +338,9 @@ class TeacherResource extends Resource
                     ->label('Fatturazione')
                     ->options([
                         'WITHHOLDING_20' => "Ritenuta d'acconto 20%",
-                        'NO_VAT' => 'Senza IVA',
-                        'WITH_VAT' => 'Con IVA',
-                        'NONE' => 'Nessuna',
+                        'NO_VAT'         => 'Senza IVA',
+                        'WITH_VAT'       => 'Con IVA',
+                        'NONE'           => 'Nessuna',
                     ]),
 
                 Tables\Filters\SelectFilter::make('province')
@@ -364,10 +372,10 @@ class TeacherResource extends Resource
                     ->visible(fn (Teacher $record) => ! empty($record->id_document_path)),
 
                 Tables\Actions\EditAction::make()
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
 
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn () => static::canDeleteAny()),
+                    ->visible(fn (Model $record) => static::canDelete($record)),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()

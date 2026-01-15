@@ -2,6 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\AdminDashboard;
+use App\Filament\Pages\MyCourses;
+use App\Filament\Pages\MyLessons;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -16,16 +19,6 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Filament\Support\Facades\FilamentAsset;
-use Filament\Support\Assets\Css;
-
-// IMPORTA LA TUA DASHBOARD CUSTOM (la creiamo nello step successivo)
-use App\Filament\Pages\AdminDashboard;
-
-// IMPORTA I TUOI WIDGET (li creiamo noi)
-use App\Filament\Widgets\AdminStatsOverview;
-use App\Filament\Widgets\TodayLessonsTable;
-// use App\Filament\Widgets\AdminAlerts; // lo aggiungiamo dopo
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -33,43 +26,51 @@ class AdminPanelProvider extends PanelProvider
     {
         return $panel
             ->default()
-            ->id('admin')          // ✅ id "parlante"
+            ->id('admin')
             ->path('admin')
+            ->authGuard('web')
             ->login()
+
 
             ->colors([
                 'primary' => Color::Amber,
             ])
-            //->viteTheme('resources/css/filament/admin/theme.css')
 
-->brandLogo(asset('images/logo-scuola.png'))
-->brandLogoHeight('2.25rem')
-->brandName('A&A Language Center') // opzionale: niente testo
+            ->brandLogo(asset('images/logo-scuola.png'))
+            ->brandLogoHeight('2.25rem')
+            ->brandName('A&A Language Center')
 
+            // ✅ Pagine registrate esplicitamente
+            ->pages([
+                AdminDashboard::class,
+                MyCourses::class,
+                MyLessons::class,
+            ])
+
+         //✅ IMPORTANTISSIMO: scopre anche tutte le altre Pages (es. Reports)
+        //   ->discoverPages(
+          //    in: app_path('Filament/Pages'),
+            //  for: 'App\\Filament\\Pages'
+         //   )
+
+         ->pages([
+    AdminDashboard::class,
+    MyCourses::class,
+    MyLessons::class,
+])
+
+            // ✅ Resources / Widgets
             ->discoverResources(
                 in: app_path('Filament/Resources'),
                 for: 'App\\Filament\\Resources'
             )
-
-            ->discoverPages(
-                in: app_path('Filament/Pages'),
-                for: 'App\\Filament\\Pages'
-            )
-
-            // ✅ qui scegliamo la dashboard custom (al posto di Pages\Dashboard)
-->pages([
-    AdminDashboard::class,
-])
-
             ->discoverWidgets(
                 in: app_path('Filament/Widgets'),
                 for: 'App\\Filament\\Widgets'
             )
 
-            // ✅ widget "globali" / sempre disponibili
             ->widgets([
                 Widgets\AccountWidget::class,
-                // Widgets\FilamentInfoWidget::class, // opzionale: puoi toglierlo
             ])
 
             ->middleware([
@@ -88,13 +89,4 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ]);
     }
-
-    public function boot(): void
-{
-    FilamentAsset::register([
-        Css::make('filament-admin-theme', asset('css/filament-admin.css')),
-    ]);
-}
-
-
 }

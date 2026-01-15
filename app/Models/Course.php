@@ -30,4 +30,5 @@ final class Course extends Model
     {
         return (int) ($this->lessons_count ?? 0);
     }
+
 }

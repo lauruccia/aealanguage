@@ -10,37 +10,42 @@ use Illuminate\Support\Facades\DB;
 class LessonScheduler
 {
     /**
+     * Requisiti minimi per schedulare.
+     */
+    public function canSchedule(Enrollment $enrollment): bool
+    {
+        return !empty($enrollment->starts_at)
+            && !empty($enrollment->weekly_day)
+            && !empty($enrollment->weekly_time);
+    }
+
+    /**
      * Genera (o rigenera) le lezioni per una iscrizione.
-     * - 1 lezione a settimana
-     * - usa weekly_day (1..7) + weekly_time (HH:MM) + lesson_duration_minutes
-     * - numero lezioni = courses.lessons_count
-     * - se la data è in closure_days => slitta di 7 giorni (e ripete finché non trova un giorno valido)
-     * - imposta teacher_id iniziale = default_teacher_id
-     * - aggiorna enrollment.ends_at con la data dell’ultima lezione
+     *
+     * forceRegenerate = true:
+     *  - cancella tutte le lezioni e rigenera da zero
+     *
+     * forceRegenerate = false (PRO):
+     *  - NON tocca le lezioni già svolte
+     *  - cancella solo future non svolte
+     *  - rigenera da “oggi in poi” rispettando count totale corso
      */
     public function generateForEnrollment(Enrollment $enrollment, bool $forceRegenerate = true): void
     {
-        $enrollment->loadMissing(['course', 'student']);
+        $enrollment->loadMissing(['course', 'student', 'lessons']);
 
         if (!$enrollment->course) {
-            throw new \RuntimeException('Enrollment senza course associato.');
+            return;
         }
 
         $lessonsCount = (int) ($enrollment->course->lessons_count ?? 0);
         if ($lessonsCount <= 0) {
-            // niente da generare
             return;
         }
 
-        // requisiti minimi
-        if (empty($enrollment->starts_at)) {
-            throw new \RuntimeException('Imposta la data inizio corso (starts_at) per generare le lezioni.');
-        }
-        if (empty($enrollment->weekly_day)) {
-            throw new \RuntimeException('Imposta il giorno settimanale (weekly_day) per generare le lezioni.');
-        }
-        if (empty($enrollment->weekly_time)) {
-            throw new \RuntimeException('Imposta l’ora (weekly_time) per generare le lezioni.');
+        // ✅ NUOVO: se non ho dati di pianificazione, non genero e non crasho
+        if (!$this->canSchedule($enrollment)) {
+            return;
         }
 
         $durationMinutes = (int) ($enrollment->lesson_duration_minutes ?? 60);
@@ -49,40 +54,59 @@ class LessonScheduler
         DB::transaction(function () use ($enrollment, $lessonsCount, $durationMinutes, $forceRegenerate) {
 
             if ($forceRegenerate) {
+                // reset totale
                 $enrollment->lessons()->delete();
+                $alreadyDoneCount = 0;
+                $startFrom = $this->firstLessonDateTime($enrollment);
+                $nextLessonNumber = 1;
             } else {
-                // se non forziamo, evitiamo duplicati e ripartiamo dal prossimo numero
-                $existing = $enrollment->lessons()->count();
-                if ($existing >= $lessonsCount) {
+                // ✅ PRO: preservo svolte e cancello solo future non svolte
+                $completed = $enrollment->lessons()
+                    ->where('status', 'completed')
+                    ->orderBy('lesson_number')
+                    ->get();
+
+                $alreadyDoneCount = $completed->count();
+                if ($alreadyDoneCount >= $lessonsCount) {
                     return;
                 }
+
+                // cancello le future NON svolte (scheduled/cancelled ecc.)
+                $enrollment->lessons()
+                    ->where('status', '!=', 'completed')
+                    ->where('starts_at', '>=', now())
+                    ->delete();
+
+                // riparto dalla prossima occorrenza valida (da oggi o da starts_at se futura)
+                $startFrom = $this->firstOccurrenceDateTime(
+                    Carbon::parse($enrollment->starts_at)->startOfDay()->max(now()->startOfDay()),
+                    (int) $enrollment->weekly_day,
+                    (string) $enrollment->weekly_time
+                );
+
+                $startFrom = $this->skipClosuresByWeek($startFrom);
+
+                $nextLessonNumber = $alreadyDoneCount + 1;
             }
 
-            // calcolo prima data lezione: primo giorno weekly_day a partire da starts_at
-            $firstStart = $this->firstOccurrenceDateTime(
-                Carbon::parse($enrollment->starts_at)->startOfDay(),
-                (int) $enrollment->weekly_day,
-                (string) $enrollment->weekly_time
-            );
-
-            // slitta se cade su chiusura
-            $firstStart = $this->skipClosuresByWeek($firstStart);
+            $toCreate = $lessonsCount - $alreadyDoneCount;
+            if ($toCreate <= 0) {
+                return;
+            }
 
             $created = 0;
-            $currentStart = $firstStart->copy();
+            $currentStart = $startFrom->copy();
 
-            while ($created < $lessonsCount) {
+            while ($created < $toCreate) {
                 $start = $this->skipClosuresByWeek($currentStart->copy());
                 $end = $start->copy()->addMinutes($durationMinutes);
-
-                $lessonNumber = $created + 1;
 
                 $enrollment->lessons()->create([
                     'enrollment_id'     => $enrollment->id,
                     'student_id'        => $enrollment->student_id,
                     'course_id'         => $enrollment->course_id,
                     'teacher_id'        => $enrollment->default_teacher_id,
-                    'lesson_number'     => $lessonNumber,
+                    'lesson_number'     => $nextLessonNumber,
                     'starts_at'         => $start,
                     'ends_at'           => $end,
                     'duration_minutes'  => $durationMinutes,
@@ -90,12 +114,12 @@ class LessonScheduler
                 ]);
 
                 $created++;
+                $nextLessonNumber++;
 
-                // prossima settimana (base): stesso giorno/ora
                 $currentStart = $start->copy()->addWeek();
             }
 
-            // aggiorna ends_at dell’iscrizione = data ultima lezione (solo data)
+            // aggiorna ends_at = ultima lezione in assoluto (anche se completata)
             $lastLesson = $enrollment->lessons()
                 ->orderByDesc('lesson_number')
                 ->first();
@@ -106,6 +130,17 @@ class LessonScheduler
                 ]);
             }
         });
+    }
+
+    private function firstLessonDateTime(Enrollment $enrollment): Carbon
+    {
+        $firstStart = $this->firstOccurrenceDateTime(
+            Carbon::parse($enrollment->starts_at)->startOfDay(),
+            (int) $enrollment->weekly_day,
+            (string) $enrollment->weekly_time
+        );
+
+        return $this->skipClosuresByWeek($firstStart);
     }
 
     /**
@@ -119,21 +154,16 @@ class LessonScheduler
         $h = (int) $h;
         $m = (int) $m;
 
-        // Carbon: dayOfWeekIso => 1 (Mon) .. 7 (Sun)
         $candidate = $startDate->copy()->setTime($h, $m, 0);
 
         $diff = $weeklyDay - $candidate->dayOfWeekIso;
         if ($diff < 0) {
             $diff += 7;
         }
-        $candidate->addDays($diff);
 
-        return $candidate;
+        return $candidate->addDays($diff);
     }
 
-    /**
-     * Se la data (solo giorno) è in closure_days, slitta di +7 giorni finché non trova un giorno aperto.
-     */
     private function skipClosuresByWeek(Carbon $dateTime): Carbon
     {
         while ($this->isClosureDay($dateTime)) {

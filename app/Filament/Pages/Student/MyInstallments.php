@@ -21,7 +21,7 @@ class MyInstallments extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('student.installments.view_own') ?? false;
+        return auth()->user()?->hasRole('studente') ?? false;
     }
 
     protected function baseQuery(): Builder

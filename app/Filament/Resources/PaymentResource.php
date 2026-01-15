@@ -20,35 +20,43 @@ class PaymentResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function canViewAny(): bool
+    /**
+     * Staff con controllo completo.
+     */
+    protected static function staffCanManage(): bool
     {
         $u = auth()->user();
         if (! $u) {
             return false;
         }
 
-        // visibile allo staff (anche se non in menu)
         return $u->hasAnyRole(['superadmin', 'amministrazione', 'segreteria']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        // visibile allo staff (anche se non in menu)
+        return static::staffCanManage();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('payments.manage') ?? false;
+        return static::staffCanManage();
     }
 
     public static function form(Form $form): Form
@@ -59,7 +67,8 @@ class PaymentResource extends Resource
                 ->numeric(),
 
             Forms\Components\TextInput::make('installment_id')
-                ->numeric(),
+                ->numeric()
+                ->nullable(),
 
             Forms\Components\DatePicker::make('paid_at')
                 ->required(),
@@ -72,13 +81,16 @@ class PaymentResource extends Resource
                 ->required(),
 
             Forms\Components\TextInput::make('method')
-                ->maxLength(255),
+                ->maxLength(255)
+                ->nullable(),
 
             Forms\Components\TextInput::make('reference')
-                ->maxLength(255),
+                ->maxLength(255)
+                ->nullable(),
 
             Forms\Components\Textarea::make('notes')
-                ->columnSpanFull(),
+                ->columnSpanFull()
+                ->nullable(),
         ]);
     }
 
@@ -122,7 +134,7 @@ class PaymentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn () => static::canCreate()),
+                    ->visible(fn (Model $record) => static::canEdit($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

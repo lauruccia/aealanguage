@@ -5,9 +5,9 @@ namespace App\Filament\Pages;
 use App\Models\Lesson;
 use Filament\Pages\Page;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 class MyLessons extends Page implements HasTable
@@ -16,14 +16,20 @@ class MyLessons extends Page implements HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
     protected static ?string $navigationLabel = 'Le mie lezioni';
-    protected static ?string $navigationGroup = 'Didattica';
-
+    protected static ?string $navigationGroup = 'Docente';
     protected static string $view = 'filament.pages.my-lessons';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->can('lessons.view_own') ?? false;
-    }
+    protected static ?string $slug = 'teacher/my-lessons';
+
+    // ✅ Accesso libero (niente più 403)
+public static function canAccess(): bool
+{
+    return auth()->user()?->hasRole('docente') ?? false;
+}
+
+
+
+
 
     public function getTitle(): string
     {
@@ -135,8 +141,7 @@ class MyLessons extends Page implements HasTable
                     ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
                     ->visible(fn (Lesson $record) =>
-                        (auth()->user()?->can('lessons.update_own') ?? false)
-                        && $record->teacher_id === auth()->user()?->teacher?->id
+                        $record->teacher_id === auth()->user()?->teacher?->id
                         && $record->status !== Lesson::STATUS_COMPLETED
                     )
                     ->action(function (Lesson $record) {
@@ -166,8 +171,7 @@ class MyLessons extends Page implements HasTable
                         'notes' => $record->notes,
                     ])
                     ->visible(fn (Lesson $record) =>
-                        (auth()->user()?->can('lessons.update_own') ?? false)
-                        && $record->teacher_id === auth()->user()?->teacher?->id
+                        $record->teacher_id === auth()->user()?->teacher?->id
                     )
                     ->action(function (Lesson $record, array $data) {
                         if ($record->teacher_id !== auth()->user()?->teacher?->id) {
