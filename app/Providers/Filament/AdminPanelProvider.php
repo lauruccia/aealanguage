@@ -48,16 +48,16 @@ class AdminPanelProvider extends PanelProvider
             ])
 
          //✅ IMPORTANTISSIMO: scopre anche tutte le altre Pages (es. Reports)
-        //   ->discoverPages(
-          //    in: app_path('Filament/Pages'),
-            //  for: 'App\\Filament\\Pages'
-         //   )
+          ->discoverPages(
+             in: app_path('Filament/Pages'),
+              for: 'App\\Filament\\Pages'
+          )
 
-         ->pages([
-    AdminDashboard::class,
-    MyCourses::class,
-    MyLessons::class,
-])
+      //   ->pages([
+   // AdminDashboard::class,
+   // MyCourses::class,
+    //MyLessons::class,
+//])
 
             // ✅ Resources / Widgets
             ->discoverResources(
