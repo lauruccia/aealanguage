@@ -13,6 +13,11 @@ class EditEnrollment extends EditRecord
 {
     protected static string $resource = EnrollmentResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Modifica Modulo Iscrizione';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

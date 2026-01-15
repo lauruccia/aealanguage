@@ -48,27 +48,44 @@
 </div>
 
 @php
+    // ✅ corso e lingua
+    $course = $enrollment->course;
     $language = $course?->subject?->name ?: '—';
 
     $enrolledAt = $enrollment->enrolled_at ? \Carbon\Carbon::parse($enrollment->enrolled_at) : now();
 
-    // Importi (usati solo nei “campi” del modulo, non aggiungiamo tabelle)
+    // Importi
     $total = (float) ($enrollment->course_price_eur ?? 0) + (float) ($enrollment->registration_fee_eur ?? 0);
     $deposit = (float) ($enrollment->deposit ?? 0);
     $saldo = max(0, $total - $deposit);
 
-    $plan = $enrollment->payment_plan ?? 'monthly';
     $installmentsCount = (int) ($enrollment->installments_count ?? 0);
     $monthly = ($installmentsCount > 0) ? ($saldo / $installmentsCount) : 0.0;
 
     $fmt = fn($n) => number_format((float)$n, 2, ',', '.');
 
-    // “entro e non oltre ___ mesi”: se hai ends_at lo stimiamo, altrimenti lasciamo vuoto
+    // “entro e non oltre ___ mesi”
     $months = null;
     if (!empty($enrollment->ends_at) && !empty($enrollment->enrolled_at)) {
         $months = \Carbon\Carbon::parse($enrollment->enrolled_at)->diffInMonths(\Carbon\Carbon::parse($enrollment->ends_at));
         $months = max(1, $months);
     }
+
+    // ✅ Tipologia scelta nel modulo iscrizione
+    $packageType = $enrollment->lesson_package_type;
+
+    $packageLabels = [
+        'personalizzate' => 'LEZIONI PERSONALIZZATE nel Vostro disponibile Centro Didattico',
+        'full_immersion' => 'LEZIONI DI FULL IMMERSION di piccoli gruppi tenute nel Vostro disponibile Centro Didattico',
+        'test_exam'      => 'TEST EXAMINATION per controllare l’avanzamento dell’apprendimento.',
+    ];
+
+    // ✅ Numero ore/lezioni preso dal corso
+    $units = $course?->lessons_count;
+    $unitLabel = $packageType === 'full_immersion' ? 'lezioni' : 'ore';
+
+    // Logo
+    $logoPath = public_path('images/logo-aa.png');
 @endphp
 
 <div class="sheet">
@@ -84,24 +101,13 @@
         </div>
 
         <div class="col center">
-            {{-- Se hai un logo pubblico, mettilo in public/images/logo-aa.png --}}
-            @php
-    $logoPath = public_path('images/logo-aa.png');
-@endphp
+            @if (file_exists($logoPath))
+                <img class="logo" src="{{ asset('images/logo-aa.png') }}" alt="A&A Language Center">
+            @else
+                <div class="label">A&amp;A Language Center</div>
+            @endif
 
-@if (file_exists($logoPath))
-    <img
-        class="logo"
-        src="{{ asset('images/logo-aa.png') }}"
-        alt="A&A Language Center"
-    >
-@else
-    <div class="label">A&amp;A Language Center</div>
-@endif
-
-            <div class="tiny muted" style="margin-top:4px;">
-                {{-- eventuali bandierine/icone puoi inserirle qui se vuoi --}}
-            </div>
+            <div class="tiny muted" style="margin-top:4px;"></div>
         </div>
 
         <div class="col right" style="text-align:right;">
@@ -120,16 +126,26 @@
 
         <div class="clause">
             <span class="label">a)</span>
-            In espressa accettazione di quanto oggi proposto da A&amp;A Language Center Srl, nel presente modulo di iscrizione definito nel
-            seguito contratto, vengono messi a disposizione del sottoscrittore/a, nella lingua sopra scelta, entro e non oltre
+            In espressa accettazione di quanto oggi proposto da A&amp;A Language Center Srl, nel presente modulo di iscrizione definito nel seguito contratto,
+            vengono messi a disposizione del sottoscrittore/a, nella lingua sopra scelta, entro e non oltre
             <span class="value">{{ $months ? $months : '____' }}</span> mesi a far data da oggi, i seguenti servizi che potranno essere svolti previa prenotazione dal
             Lunedì al Venerdì dalle ore 9:00 alle ore 20:00 ed il Sabato dalle ore 9:00 alle ore 14:00 :
         </div>
 
+        <!-- ✅ Qui: evidenziamo la tipologia scelta e stampiamo ore/lezioni dal corso -->
         <ol class="list">
-            <li><span class="label">LEZIONI PERSONALIZZATE</span> nel Vostro disponibile Centro Didattico</li>
-            <li><span class="label">LEZIONI DI FULL IMMERSION</span> di piccoli gruppi tenute nel Vostro disponibile Centro Didattico</li>
-            <li><span class="label">TEST EXAMINATION</span> per controllare l’avanzamento dell’apprendimento.</li>
+            @foreach($packageLabels as $key => $label)
+                <li>
+                    @if($packageType === $key)
+                        <span class="label">✔ {{ $label }}</span>
+                        @if($units)
+                            — <strong class="value">{{ $units }}</strong> <span class="value">{{ $unitLabel }}</span>
+                        @endif
+                    @else
+                        {{ $label }}
+                    @endif
+                </li>
+            @endforeach
         </ol>
 
         <div class="clause">

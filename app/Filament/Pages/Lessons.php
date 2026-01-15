@@ -26,12 +26,12 @@ class Lessons extends Page implements HasTable
     protected static ?string $slug = 'teacher-lessons';
 
     public static function canAccess(): bool
-    {
-        $u = Filament::auth()->user();
-        if (! $u) return false;
+{
+    $u = auth()->user();
+    if (! $u) return false;
 
-        return $u->hasAnyRole(['docente', 'superadmin', 'amministrazione', 'segreteria']);
-    }
+    return $u->hasRole('docente');
+}
 
     public function getTitle(): string
     {

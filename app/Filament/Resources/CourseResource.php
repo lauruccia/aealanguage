@@ -71,17 +71,8 @@ class CourseResource extends Resource
                         ->required()
                         ->maxLength(255),
 
-                    Forms\Components\Select::make('subject_id')
-                        ->label('Lingua')
-                        ->relationship(
-                            name: 'subject',
-                            titleAttribute: 'name',
-                            modifyQueryUsing: fn ($query) => $query->orderBy('name')
-                        )
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->helperText('Lingua del corso (coerente con le lingue docenti).'),
+                    // ✅ RIMOSSA la lingua (subject_id) dal corso
+                    // La lingua verrà selezionata nel Modulo Iscrizione (Enrollment)
 
                     Forms\Components\TextInput::make('lessons_count')
                         ->label('Numero lezioni')
@@ -109,7 +100,8 @@ class CourseResource extends Resource
                         ->label('Tassa iscrizione (€)')
                         ->numeric()
                         ->minValue(0)
-                        ->default(0)
+                        // ✅ default 70 come richiesto (modificabile)
+                        ->default(70)
                         ->required(),
                 ])
                 ->columns(2),
@@ -125,9 +117,10 @@ class CourseResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('subject.name')
-                    ->label('Lingua')
-                    ->sortable(),
+                // ✅ RIMOSSA colonna lingua dalla lista corsi
+                // Tables\Columns\TextColumn::make('subject.name')
+                //     ->label('Lingua')
+                //     ->sortable(),
 
                 Tables\Columns\TextColumn::make('lessons_count')
                     ->label('Lezioni')

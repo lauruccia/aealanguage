@@ -102,25 +102,7 @@ class StudentResource extends Resource
                                         ->reactive()
                                         ->default(false),
 
-                                    Forms\Components\Placeholder::make('languages')
-                                        ->label('Lingue')
-                                        ->content(function (?Student $record) {
-                                            if (! $record?->id) return '—';
 
-                                            // FIX: status coerente con EnrollmentResource (attivo)
-                                            $names = $record->enrollments()
-                                                ->whereIn('status', ['attivo', 'sospeso'])
-                                                ->with('course.subject')
-                                                ->get()
-                                                ->pluck('course.subject.name')
-                                                ->filter()
-                                                ->unique()
-                                                ->values()
-                                                ->all();
-
-                                            return count($names) ? implode(', ', $names) : '—';
-                                        })
-                                        ->dehydrated(false),
                                 ])
                                 ->columns(3),
 
@@ -296,7 +278,7 @@ class StudentResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \App\Filament\Resources\StudentResource\RelationManagers\EnrollmentsRelationManager::class,
+       //     \App\Filament\Resources\StudentResource\RelationManagers\EnrollmentsRelationManager::class,
         ];
     }
 

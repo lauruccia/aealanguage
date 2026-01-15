@@ -23,13 +23,13 @@ class Courses extends Page implements HasTable
     // ✅ NON usare "courses" perché è già del Resource CourseResource
     protected static ?string $slug = 'teacher-courses';
 
-    public static function canAccess(): bool
-    {
-        $u = Filament::auth()->user();
-        if (! $u) return false;
+   public static function canAccess(): bool
+{
+    $u = auth()->user();
+    if (! $u) return false;
 
-        return $u->hasAnyRole(['docente', 'superadmin', 'amministrazione', 'segreteria']);
-    }
+    return $u->hasRole('docente');
+}
 
     public function getTitle(): string
     {

@@ -13,6 +13,11 @@ class CreateEnrollment extends CreateRecord
 {
     protected static string $resource = EnrollmentResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Nuovo Modulo Iscrizione';
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Controllo "user-friendly" prima ancora dell'insert (evita errore SQL)
@@ -23,8 +28,8 @@ class CreateEnrollment extends CreateRecord
 
         if ($exists) {
             Notification::make()
-                ->title('Iscrizione già presente')
-                ->body('Questo studente risulta già iscritto a questo corso. Apri l’iscrizione esistente e modificala.')
+                ->title('Modulo già presente')
+                ->body('Questo studente risulta già iscritto a questo corso. Apri il modulo esistente e modificalo.')
                 ->danger()
                 ->send();
 
@@ -43,8 +48,8 @@ class CreateEnrollment extends CreateRecord
             // Fallback: se per qualche motivo arriva comunque dal DB
             if (str_contains($e->getMessage(), 'enrollments_student_id_course_id_unique')) {
                 Notification::make()
-                    ->title('Iscrizione già presente')
-                    ->body('Questo studente risulta già iscritto a questo corso. Apri l’iscrizione esistente e modificala.')
+                    ->title('Modulo già presente')
+                    ->body('Questo studente risulta già iscritto a questo corso. Apri il modulo esistente e modificalo.')
                     ->danger()
                     ->send();
 

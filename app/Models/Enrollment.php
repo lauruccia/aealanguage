@@ -8,15 +8,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Enrollment extends Model
 {
+    /**
+     * Se vuoi proteggere campi specifici, cambia in $fillable.
+     * Per ora lasciamo libero come avevi tu.
+     */
     protected $guarded = [];
 
     protected $casts = [
         'enrolled_at' => 'date',
         'starts_at'   => 'date',
         'ends_at'     => 'date',
-        'deposit'     => 'decimal:2',
+
+        // soldi
+        'deposit'          => 'decimal:2',
+        'course_price'     => 'decimal:2',
+        'enrollment_fee'   => 'decimal:2',
+        'rateable_residual'=> 'decimal:2',
     ];
 
+    /**
+     * Relazioni base
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
@@ -25,6 +37,15 @@ class Enrollment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * Lingua scelta in fase di iscrizione (Modulo Iscrizione)
+     * Richiede colonna language_id su enrollments.
+     */
+    public function language(): BelongsTo
+    {
+        return $this->belongsTo(Language::class);
     }
 
     public function defaultTeacher(): BelongsTo
@@ -47,24 +68,38 @@ class Enrollment extends Model
         return $this->hasMany(Lesson::class);
     }
 
-    public function hourMovements()
-{
-    return $this->hasMany(\App\Models\EnrollmentHourMovement::class);
-}
+    /**
+     * Ore/minuti acquistati/consumati
+     */
+    public function hourMovements(): HasMany
+    {
+        return $this->hasMany(EnrollmentHourMovement::class);
+    }
 
-public function purchasedMinutes(): int
-{
-    return (int) $this->hourMovements()->where('minutes', '>', 0)->sum('minutes');
-}
+    public function purchasedMinutes(): int
+    {
+        return (int) $this->hourMovements()
+            ->where('minutes', '>', 0)
+            ->sum('minutes');
+    }
 
-public function consumedMinutes(): int
-{
-    return (int) $this->hourMovements()->where('minutes', '<', 0)->sum('minutes'); // negativo
-}
+    public function consumedMinutes(): int
+    {
+        // somma negativa
+        return (int) $this->hourMovements()
+            ->where('minutes', '<', 0)
+            ->sum('minutes');
+    }
 
-public function remainingMinutes(): int
+    public function remainingMinutes(): int
+    {
+        // consumed è negativo
+        return $this->purchasedMinutes() + $this->consumedMinutes();
+    }
+
+    public function subject(): \Illuminate\Database\Eloquent\Relations\BelongsTo
 {
-    return $this->purchasedMinutes() + $this->consumedMinutes(); // consumed è negativo
+    return $this->belongsTo(\App\Models\Subject::class);
 }
 
 }

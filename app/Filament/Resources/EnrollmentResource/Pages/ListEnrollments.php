@@ -10,10 +10,16 @@ class ListEnrollments extends ListRecords
 {
     protected static string $resource = EnrollmentResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Moduli Iscrizione';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Nuovo Modulo Iscrizione'),
         ];
     }
 }

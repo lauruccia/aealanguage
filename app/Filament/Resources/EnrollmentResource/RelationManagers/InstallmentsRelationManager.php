@@ -30,15 +30,29 @@ class InstallmentsRelationManager extends RelationManager
                 ->label('Scadenza')
                 ->required(),
 
-            Forms\Components\TextInput::make('amount_cents')
-                ->label('Importo (cents)')
-                ->numeric()
-                ->required(),
+Forms\Components\TextInput::make('amount_cents')
+    ->label('Importo (€)')
+    ->numeric()
+    ->required()
+    ->suffix('€')
+    ->formatStateUsing(fn ($state) =>
+        $state !== null ? number_format($state / 100, 2, '.', '') : null
+    )
+    ->dehydrateStateUsing(fn ($state) =>
+        $state !== null ? (int) round(((float) str_replace(',', '.', $state)) * 100) : null
+    ),
 
-            Forms\Components\TextInput::make('paid_cents')
-                ->label('Pagato (cents)')
-                ->numeric()
-                ->default(0),
+         Forms\Components\TextInput::make('paid_cents')
+    ->label('Pagato (€)')
+    ->numeric()
+    ->suffix('€')
+    ->formatStateUsing(fn ($state) =>
+        $state !== null ? number_format($state / 100, 2, '.', '') : null
+    )
+    ->dehydrateStateUsing(fn ($state) =>
+        $state !== null ? (int) round(((float) str_replace(',', '.', $state)) * 100) : null
+    ),
+
 
             Forms\Components\Select::make('status')
                 ->label('Stato')

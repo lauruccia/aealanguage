@@ -132,6 +132,13 @@ class LessonScheduler
         });
     }
 
+    public function rescheduleFutureNotCompleted(\App\Models\Enrollment $enrollment): void
+{
+    // fallback: per ora rigenero tutto come comportamento sicuro
+    $this->generateForEnrollment($enrollment, true);
+}
+
+
     private function firstLessonDateTime(Enrollment $enrollment): Carbon
     {
         $firstStart = $this->firstOccurrenceDateTime(

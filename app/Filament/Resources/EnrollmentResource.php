@@ -18,9 +18,10 @@ class EnrollmentResource extends Resource
     protected static ?string $model = Enrollment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
-    protected static ?string $navigationLabel = 'Contratti';
-    protected static ?string $modelLabel = 'Contratto';
-    protected static ?string $pluralModelLabel = 'Contratti';
+
+    protected static ?string $navigationLabel = 'Moduli Iscrizione';
+    protected static ?string $modelLabel = 'Modulo Iscrizione';
+    protected static ?string $pluralModelLabel = 'Moduli Iscrizione';
 
     protected static ?string $navigationGroup = 'Studenti';
     protected static ?int $navigationSort = 2;
@@ -89,30 +90,52 @@ class EnrollmentResource extends Resource
                         ->options(fn () => Course::query()->orderBy('name')->pluck('name', 'id'))
                         ->afterStateUpdated(function ($state, callable $set) {
                             if (! $state) {
-                                $set('course_subject_label', null);
                                 return;
                             }
 
-                            $course = Course::with('subject')->find($state);
+                            $course = Course::query()->find($state);
                             if (! $course) {
                                 return;
                             }
 
+                            // prezzo dal corso
                             $set('course_price_eur', $course->prezzo);
-                            $set('registration_fee_eur', $course->tassa_iscrizione);
-                            $set('deposit', 0);
 
-                            // Lingua derivata dal corso
-                            $set('course_subject_label', $course->subject?->name);
+                            // tassa iscrizione default: prima prova quella del corso, se non c'è usa 70
+                            $fee = $course->tassa_iscrizione;
+                            $set('registration_fee_eur', is_numeric($fee) ? $fee : 70);
+
+                            $set('deposit', 0);
                         }),
 
-                    Forms\Components\Placeholder::make('course_subject_label')
+                    // ✅ Lingua scelta in fase di iscrizione (subject_id)
+                    Forms\Components\Select::make('subject_id')
                         ->label('Lingua')
-                        ->content(fn (Forms\Get $get) => $get('course_subject_label') ?: '—')
-                        ->dehydrated(false),
+                        ->required()
+                        ->searchable()
+                        ->preload()
+                        ->relationship(
+                            name: 'subject',
+                            titleAttribute: 'name',
+                            modifyQueryUsing: fn ($query) => $query->orderBy('name')
+                        ),
+
+
+
+                    Forms\Components\Select::make('lesson_package_type')
+    ->label('Tipologia lezione acquistata')
+    ->required()
+    ->options([
+        'personalizzate' => 'Lezioni personalizzate',
+        'full_immersion' => 'Full immersion (piccoli gruppi)',
+        'test_exam'      => 'Test / Examination',
+    ])
+    ->reactive(),
+
+
 
                     Forms\Components\Select::make('status')
-                        ->label('Stato contratto')
+                        ->label('Stato modulo')
                         ->required()
                         ->default('attivo')
                         ->options([
@@ -138,7 +161,7 @@ class EnrollmentResource extends Resource
                         ->numeric()
                         ->required()
                         ->minValue(0)
-                        ->default(0),
+                        ->default(70),
 
                     Forms\Components\TextInput::make('deposit')
                         ->label('Acconto (€)')
@@ -274,7 +297,7 @@ class EnrollmentResource extends Resource
                     })
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('course.subject.name')
+                Tables\Columns\TextColumn::make('subject.name')
                     ->label('Lingua')
                     ->sortable()
                     ->toggleable(),
@@ -303,7 +326,7 @@ class EnrollmentResource extends Resource
             ])
             ->actions([
                 Action::make('printContract')
-                    ->label('Stampa contratto')
+                    ->label('Stampa modulo')
                     ->icon('heroicon-o-printer')
                     ->url(fn ($record) => route('enrollments.contract.print', $record))
                     ->openUrlInNewTab()
