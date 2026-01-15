@@ -21,6 +21,8 @@ class MyLessons extends Page implements HasTable
 
     protected static ?string $slug = 'student/my-lessons';
 
+    protected static bool $shouldRegisterNavigation = true;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->hasRole('studente') ?? false;

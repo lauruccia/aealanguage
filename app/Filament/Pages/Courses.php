@@ -11,35 +11,29 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class MyCourses extends Page implements HasTable
+class Courses extends Page implements HasTable
 {
     use InteractsWithTable;
 
     protected static ?string $navigationIcon  = 'heroicon-o-academic-cap';
-    protected static ?string $navigationLabel = 'I miei corsi';
+    protected static ?string $navigationLabel = 'Corsi';
     protected static ?string $navigationGroup = 'Docente';
-    protected static string  $view            = 'filament.pages.my-courses';
+    protected static string  $view            = 'filament.pages.courses';
 
-    // ✅ IMPORTANTISSIMO: slug fisso (evita route “strane” o collisioni)
-    //protected static ?string $slug = 'my-courses';
-    protected static ?string $slug = 'teacher/my-courses';
+    // ✅ NON usare "courses" perché è già del Resource CourseResource
+    protected static ?string $slug = 'teacher-courses';
 
-    /**
-     * ✅ Accesso consentito solo ai docenti (usa guard di Filament).
-     * Se qui torna false -> Filament risponde 403.
-     */
-public static function canAccess(): bool
-{
-    return auth()->user()?->hasRole('docente') ?? false;
-}
+    public static function canAccess(): bool
+    {
+        $u = Filament::auth()->user();
+        if (! $u) return false;
 
-
-
-
+        return $u->hasAnyRole(['docente', 'superadmin', 'amministrazione', 'segreteria']);
+    }
 
     public function getTitle(): string
     {
-        return 'I miei corsi';
+        return 'Corsi';
     }
 
     protected function baseQuery(): Builder

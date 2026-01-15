@@ -20,6 +20,8 @@ class MyCourses extends Page implements HasTable
     protected static string $view = 'filament.pages.student.my-courses';
     protected static ?string $slug = 'student/my-courses';
 
+    protected static bool $shouldRegisterNavigation = true;
+
       public static function canAccess(): bool
     {
         return auth()->user()?->hasRole('studente') ?? false;

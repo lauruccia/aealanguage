@@ -3,8 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminDashboard;
-use App\Filament\Pages\MyCourses;
-use App\Filament\Pages\MyLessons;
+use App\Filament\Pages\Courses;
+use App\Filament\Pages\Lessons;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -31,7 +31,6 @@ class AdminPanelProvider extends PanelProvider
             ->authGuard('web')
             ->login()
 
-
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -40,24 +39,18 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2.25rem')
             ->brandName('A&A Language Center')
 
-            // ✅ Pagine registrate esplicitamente
+            // ✅ Pagine registrate esplicitamente (Docente/Admin)
             ->pages([
                 AdminDashboard::class,
-                MyCourses::class,
-                MyLessons::class,
+                Courses::class,
+                Lessons::class,
             ])
 
-         //✅ IMPORTANTISSIMO: scopre anche tutte le altre Pages (es. Reports)
-          ->discoverPages(
-             in: app_path('Filament/Pages'),
-              for: 'App\\Filament\\Pages'
-          )
-
-      //   ->pages([
-   // AdminDashboard::class,
-   // MyCourses::class,
-    //MyLessons::class,
-//])
+            // ✅ Scopre anche tutte le altre Pages (Student, Reports, ecc.)
+            ->discoverPages(
+                in: app_path('Filament/Pages'),
+                for: 'App\\Filament\\Pages'
+            )
 
             // ✅ Resources / Widgets
             ->discoverResources(
