@@ -14,9 +14,9 @@ class LessonScheduler
      */
     public function canSchedule(Enrollment $enrollment): bool
     {
-        return !empty($enrollment->starts_at)
-            && !empty($enrollment->weekly_day)
-            && !empty($enrollment->weekly_time);
+        return ! empty($enrollment->starts_at)
+            && ! empty($enrollment->weekly_day)
+            && ! empty($enrollment->weekly_time);
     }
 
     /**
@@ -25,16 +25,16 @@ class LessonScheduler
      * forceRegenerate = true:
      *  - cancella tutte le lezioni e rigenera da zero
      *
-     * forceRegenerate = false (PRO):
-     *  - NON tocca le lezioni già svolte
-     *  - cancella solo future non svolte
-     *  - rigenera da “oggi in poi” rispettando count totale corso
+     * forceRegenerate = false:
+     *  - NON tocca le lezioni completed
+     *  - cancella tutte le NON completed da oggi in poi
+     *  - rigenera da “oggi (o starts_at se futura) in poi” rispettando count totale corso
      */
     public function generateForEnrollment(Enrollment $enrollment, bool $forceRegenerate = true): void
     {
-        $enrollment->loadMissing(['course', 'student', 'lessons']);
+        $enrollment->loadMissing(['course', 'lessons']);
 
-        if (!$enrollment->course) {
+        if (! $enrollment->course) {
             return;
         }
 
@@ -43,8 +43,8 @@ class LessonScheduler
             return;
         }
 
-        // ✅ NUOVO: se non ho dati di pianificazione, non genero e non crasho
-        if (!$this->canSchedule($enrollment)) {
+        // Se non ho dati di pianificazione, non genero
+        if (! $this->canSchedule($enrollment)) {
             return;
         }
 
@@ -56,30 +56,38 @@ class LessonScheduler
             if ($forceRegenerate) {
                 // reset totale
                 $enrollment->lessons()->delete();
-                $alreadyDoneCount = 0;
-                $startFrom = $this->firstLessonDateTime($enrollment);
-                $nextLessonNumber = 1;
+
+                $alreadyDoneCount  = 0;
+                $startFrom         = $this->firstLessonDateTime($enrollment);
+                $nextLessonNumber  = 1;
             } else {
-                // ✅ PRO: preservo svolte e cancello solo future non svolte
+                // preservo svolte
                 $completed = $enrollment->lessons()
                     ->where('status', 'completed')
                     ->orderBy('lesson_number')
                     ->get();
 
                 $alreadyDoneCount = $completed->count();
+
                 if ($alreadyDoneCount >= $lessonsCount) {
                     return;
                 }
 
-                // cancello le future NON svolte (scheduled/cancelled ecc.)
+                // Cancello tutte le NON completed da oggi in poi
+                // (se preferisci: dalla prossima lezione “starts_at”, ma questo è più sicuro)
                 $enrollment->lessons()
                     ->where('status', '!=', 'completed')
-                    ->where('starts_at', '>=', now())
+                    ->where('starts_at', '>=', now()->startOfDay())
                     ->delete();
 
-                // riparto dalla prossima occorrenza valida (da oggi o da starts_at se futura)
+                // Riparto dalla prossima occorrenza valida:
+                // - se starts_at è nel futuro: parto da starts_at
+                // - se starts_at è nel passato: parto da oggi
+                $baseDay = Carbon::parse($enrollment->starts_at)->startOfDay();
+                $baseDay = $baseDay->greaterThan(now()->startOfDay()) ? $baseDay : now()->startOfDay();
+
                 $startFrom = $this->firstOccurrenceDateTime(
-                    Carbon::parse($enrollment->starts_at)->startOfDay()->max(now()->startOfDay()),
+                    $baseDay,
                     (int) $enrollment->weekly_day,
                     (string) $enrollment->weekly_time
                 );
@@ -99,18 +107,18 @@ class LessonScheduler
 
             while ($created < $toCreate) {
                 $start = $this->skipClosuresByWeek($currentStart->copy());
-                $end = $start->copy()->addMinutes($durationMinutes);
+                $end   = $start->copy()->addMinutes($durationMinutes);
 
                 $enrollment->lessons()->create([
-                    'enrollment_id'     => $enrollment->id,
-                    'student_id'        => $enrollment->student_id,
-                    'course_id'         => $enrollment->course_id,
-                    'teacher_id'        => $enrollment->default_teacher_id,
-                    'lesson_number'     => $nextLessonNumber,
-                    'starts_at'         => $start,
-                    'ends_at'           => $end,
-                    'duration_minutes'  => $durationMinutes,
-                    'status'            => 'scheduled',
+                    'enrollment_id'    => $enrollment->id,
+                    'student_id'       => $enrollment->student_id,
+                    'course_id'        => $enrollment->course_id,
+                    'teacher_id'       => $enrollment->default_teacher_id,
+                    'lesson_number'    => $nextLessonNumber,
+                    'starts_at'        => $start,
+                    'ends_at'          => $end,
+                    'duration_minutes' => $durationMinutes,
+                    'status'           => 'scheduled',
                 ]);
 
                 $created++;
@@ -119,7 +127,7 @@ class LessonScheduler
                 $currentStart = $start->copy()->addWeek();
             }
 
-            // aggiorna ends_at = ultima lezione in assoluto (anche se completata)
+            // aggiorna ends_at = data dell'ultima lezione generata (o completata se già esiste)
             $lastLesson = $enrollment->lessons()
                 ->orderByDesc('lesson_number')
                 ->first();
@@ -129,15 +137,19 @@ class LessonScheduler
                     'ends_at' => Carbon::parse($lastLesson->starts_at)->toDateString(),
                 ]);
             }
+
+            // ❌ QUI NON CREIAMO EVENTI GOOGLE
+            // L’evento Meet ricorrente verrà creato con un'azione separata (1 solo invito).
         });
     }
 
-    public function rescheduleFutureNotCompleted(\App\Models\Enrollment $enrollment): void
-{
-    // fallback: per ora rigenero tutto come comportamento sicuro
-    $this->generateForEnrollment($enrollment, true);
-}
-
+    /**
+     * Ripianifica mantenendo le lezioni completate.
+     */
+    public function rescheduleFutureNotCompleted(Enrollment $enrollment): void
+    {
+        $this->generateForEnrollment($enrollment, false);
+    }
 
     private function firstLessonDateTime(Enrollment $enrollment): Carbon
     {
@@ -176,6 +188,7 @@ class LessonScheduler
         while ($this->isClosureDay($dateTime)) {
             $dateTime->addWeek();
         }
+
         return $dateTime;
     }
 
