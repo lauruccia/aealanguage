@@ -38,7 +38,12 @@ class MyLessons extends Page implements HasTable
                 fn (Builder $q) => $q->where('student_id', $studentId),
                 fn (Builder $q) => $q->whereRaw('1=0')
             )
-            ->with(['course.subject', 'teacher'])
+            // IMPORTANT: subject viene dal CONTRATTO (enrollment), non dal course
+            ->with([
+                'course',
+                'enrollment.subject',
+                'teacher',
+            ])
             ->orderBy('starts_at', 'asc');
     }
 
@@ -55,11 +60,14 @@ class MyLessons extends Page implements HasTable
                 Tables\Columns\TextColumn::make('course.name')
                     ->label('Corso')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('—'),
 
-                Tables\Columns\TextColumn::make('course.subject.name')
+                // Subject dal contratto
+                Tables\Columns\TextColumn::make('enrollment.subject.name')
                     ->label('Lingua')
                     ->badge()
+                    ->sortable()
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('teacher_id')
@@ -75,11 +83,11 @@ class MyLessons extends Page implements HasTable
                     ->tooltip(fn ($state) => $state ?: null),
 
                 Tables\Columns\TextColumn::make('status')
-    ->label('Stato')
-    ->badge()
-    ->color(fn (Lesson $record) => $record->getStatusColor())
-    ->formatStateUsing(fn ($state, Lesson $record) => $record->getStatusLabel())
-    ->sortable(),
+                    ->label('Stato')
+                    ->badge()
+                    ->color(fn (Lesson $record) => $record->getStatusColor())
+                    ->formatStateUsing(fn ($state, Lesson $record) => $record->getStatusLabel())
+                    ->sortable(),
             ])
             ->actions([
                 Tables\Actions\Action::make('details')
@@ -97,9 +105,10 @@ class MyLessons extends Page implements HasTable
                             ->label('Corso')
                             ->content(fn (Lesson $record) => $record->course?->name ?? '—'),
 
+                        // Subject dal contratto
                         \Filament\Forms\Components\Placeholder::make('subject')
                             ->label('Lingua')
-                            ->content(fn (Lesson $record) => $record->course?->subject?->name ?? '—'),
+                            ->content(fn (Lesson $record) => $record->enrollment?->subject?->name ?? '—'),
 
                         \Filament\Forms\Components\Placeholder::make('teacher')
                             ->label('Docente')
