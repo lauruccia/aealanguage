@@ -10,7 +10,9 @@ use App\Observers\LessonObserver;
 use App\Models\Enrollment;
 use App\Observers\EnrollmentObserver;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Observers\StudentObserver;
+use App\Observers\TeacherObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +31,6 @@ class AppServiceProvider extends ServiceProvider
         Lesson::observe(LessonObserver::class);
         Enrollment::observe(EnrollmentObserver::class);
         Student::observe(StudentObserver::class);
+         Teacher::observe(TeacherObserver::class);
     }
 }

@@ -15,6 +15,10 @@ class User extends Authenticatable implements FilamentUser
 
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
+        'phone',
+        'address',
         'email',
         'password',
         'must_change_password',
@@ -34,27 +38,14 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
-    /**
-     * ✅ Filament v3
-     * Consenti accesso al pannello admin a tutti gli utenti autenticati.
-     */
-   
     public function canAccessPanel(Panel $panel): bool
     {
-        // Se hai SOLO questo pannello, va benissimo così.
-        // Se in futuro avrai altri pannelli, questa condizione evita accessi indesiderati.
         if ($panel->getId() !== 'admin') {
             return false;
         }
 
         return true;
-    } 
-
-
-
-
-
-
+    }
 
     // =========================
     // RUOLI (Spatie)
@@ -92,5 +83,15 @@ class User extends Authenticatable implements FilamentUser
     public function teacher()
     {
         return $this->hasOne(\App\Models\Teacher::class, 'user_id');
+    }
+
+    // =========================
+    // COMODITÀ
+    // =========================
+
+    public function getFullNameAttribute(): string
+    {
+        $full = trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+        return $full !== '' ? $full : ($this->name ?? '');
     }
 }
